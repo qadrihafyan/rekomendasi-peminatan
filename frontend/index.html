@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rekomendasi Peminatan Mahasiswa</title>
+<style>
+  :root{
+    --navy:#1B2A4A;
+    --navy-light:#2E4374;
+    --gold:#C9A24B;
+    --bg:#F7F8FA;
+    --ink:#1F2430;
+    --ink-soft:#6B7280;
+    --line:#E4E7EC;
+    --card:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  header{
+    background:var(--navy);
+    color:#fff;
+    padding:28px 20px;
+    text-align:center;
+  }
+  header h1{
+    margin:0;
+    font-size:22px;
+    font-weight:600;
+  }
+  header p{
+    margin:6px 0 0;
+    font-size:13px;
+    color:#C7CEDE;
+  }
+  main{
+    max-width:720px;
+    margin:0 auto;
+    padding:28px 20px 60px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:22px;
+    margin-bottom:20px;
+  }
+  .card h2{
+    font-size:15px;
+    margin:0 0 14px;
+    color:var(--navy);
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .field label{
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .field input{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:9px 10px;
+    font-size:14px;
+  }
+  .field input:focus{
+    outline:none;
+    border-color:var(--navy-light);
+  }
+  button{
+    width:100%;
+    background:var(--navy);
+    color:#fff;
+    border:none;
+    border-radius:9px;
+    padding:13px;
+    font-size:14.5px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:6px;
+  }
+  button:hover{ background:var(--navy-light); }
+  button:disabled{ background:#9AA3B5; cursor:not-allowed; }
+
+  #result{ display:none; }
+  .rekomendasi-utama{
+    background:linear-gradient(135deg, var(--navy), var(--navy-light));
+    color:#fff;
+    border-radius:12px;
+    padding:22px;
+    text-align:center;
+    margin-bottom:18px;
+  }
+  .rekomendasi-utama .label{
+    font-size:12px;
+    color:#C7CEDE;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .rekomendasi-utama .value{
+    font-size:21px;
+    font-weight:700;
+    margin-top:6px;
+    color:var(--gold);
+  }
+  .bar-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .bar-label{
+    width:190px;
+    font-size:13px;
+    flex-shrink:0;
+  }
+  .bar-track{
+    flex:1;
+    height:10px;
+    background:var(--line);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .bar-fill{
+    height:100%;
+    background:var(--navy-light);
+    border-radius:6px;
+    transition:width .5s ease;
+  }
+  .bar-pct{
+    width:46px;
+    text-align:right;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .error{
+    color:#B91C1C;
+    background:#FEF2F2;
+    border:1px solid #FCA5A5;
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13px;
+    margin-bottom:16px;
+    display:none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sistem Rekomendasi Peminatan</h1>
+  <p>Teknik Informatika — berdasarkan nilai mata kuliah yang sudah ditempuh</p>
+</header>
+
+<main>
+  <div class="error" id="errorBox"></div>
+
+  <div class="card">
+    <h2>Data Mahasiswa (opsional)</h2>
+    <div class="grid">
+      <div class="field">
+        <label>NIM</label>
+        <input type="text" id="nim" placeholder="2111000123" />
+      </div>
+      <div class="field">
+        <label>Nama</label>
+        <input type="text" id="nama" placeholder="Nama lengkap" />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Nilai Mata Kuliah (skala 0–100)</h2>
+    <div class="grid" id="nilaiGrid"></div>
+    <button id="submitBtn">Lihat Rekomendasi Peminatan</button>
+  </div>
+
+  <div id="result">
+    <div class="rekomendasi-utama">
+      <div class="label">Rekomendasi Peminatan Paling Sesuai</div>
+      <div class="value" id="rekomendasiUtama">-</div>
+    </div>
+
+    <div class="card">
+      <h2>Skor Kecocokan Semua Peminatan</h2>
+      <div id="rankingList"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  const API_BASE = "http://localhost:8001/api"; // ganti ke URL backend production nanti
+
+  const MATA_KULIAH = [
+    "Algoritma_Pemrograman",
+    "Struktur_Data",
+    "Basis_Data",
+    "Rekayasa_Perangkat_Lunak",
+    "Matematika_Diskrit",
+    "Statistika_Probabilitas",
+    "Jaringan_Komputer",
+    "Sistem_Operasi",
+    "Keamanan_Informasi",
+    "Pemrograman_Mobile",
+  ];
+
+  const LABEL_TAMPIL = {
+    Algoritma_Pemrograman: "Algoritma & Pemrograman",
+    Struktur_Data: "Struktur Data",
+    Basis_Data: "Basis Data",
+    Rekayasa_Perangkat_Lunak: "Rekayasa Perangkat Lunak",
+    Matematika_Diskrit: "Matematika Diskrit",
+    Statistika_Probabilitas: "Statistika & Probabilitas",
+    Jaringan_Komputer: "Jaringan Komputer",
+    Sistem_Operasi: "Sistem Operasi",
+    Keamanan_Informasi: "Keamanan Informasi",
+    Pemrograman_Mobile: "Pemrograman Mobile",
+  };
+
+  const grid = document.getElementById("nilaiGrid");
+  MATA_KULIAH.forEach((mk) => {
+    const div = document.createElement("div");
+    div.className = "field";
+    div.innerHTML = `
+      <label>${LABEL_TAMPIL[mk]}</label>
+      <input type="number" min="0" max="100" id="${mk}" placeholder="0-100" />
+    `;
+    grid.appendChild(div);
+  });
+
+  const errorBox = document.getElementById("errorBox");
+  const resultDiv = document.getElementById("result");
+  const submitBtn = document.getElementById("submitBtn");
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.style.display = "block";
+  }
+
+  function clearError() {
+    errorBox.style.display = "none";
+  }
+
+  submitBtn.addEventListener("click", async () => {
+    clearError();
+    resultDiv.style.display = "none";
+
+    const payload = {
+      nim: document.getElementById("nim").value || null,
+      nama: document.getElementById("nama").value || null,
+    };
+
+    for (const mk of MATA_KULIAH) {
+      const val = document.getElementById(mk).value;
+      if (val === "") {
+        showError(`Nilai "${LABEL_TAMPIL[mk]}" belum diisi.`);
+        return;
+      }
+      payload[mk] = parseFloat(val);
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Memproses...";
+
+    try {
+      const res = await fetch(`${API_BASE}/recommend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(data.detail || "Terjadi kesalahan di server.");
+        return;
+      }
+
+      document.getElementById("rekomendasiUtama").textContent = data.rekomendasi_utama;
+
+      const rankingList = document.getElementById("rankingList");
+      rankingList.innerHTML = "";
+      data.ranking_semua_peminatan.forEach((r) => {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        row.innerHTML = `
+          <div class="bar-label">${r.peminatan}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${r.skor_kecocokan}%"></div></div>
+          <div class="bar-pct">${r.skor_kecocokan}%</div>
+        `;
+        rankingList.appendChild(row);
+      });
+
+      resultDiv.style.display = "block";
+      resultDiv.scrollIntoView({ behavior: "smooth" });
+    } catch (err) {
+      showError("Koneksi ke server gagal. Pastikan backend sedang berjalan.");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Lihat Rekomendasi Peminatan";
+    }
+  });
+</script>
+
+</body>
+</html>
