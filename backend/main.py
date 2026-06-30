@@ -3,13 +3,16 @@ Backend FastAPI: Sistem Rekomendasi Peminatan Mahasiswa
 Endpoint utama: POST /api/recommend
 """
 
+import os
 import pickle
 import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-MODEL_DIR = "model"  # relatif terhadap folder backend, sesuaikan saat deploy
+# Path absolut relatif terhadap file ini, supaya tetap benar
+# baik dijalankan lokal (python main.py) maupun di serverless (Vercel)
+MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model")
 
 app = FastAPI(title="Sistem Rekomendasi Peminatan Mahasiswa")
 
