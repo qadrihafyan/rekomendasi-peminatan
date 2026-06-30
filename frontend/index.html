@@ -132,6 +132,67 @@
     box-shadow:0 0 0 3px rgba(108,92,231,0.13);
     background:#fff;
   }
+  .field input.invalid{
+    border-color:#E0594F;
+    background:#FFF6F5;
+  }
+  .field input.filled{
+    border-color:#C9E6D8;
+  }
+
+  /* progress */
+  .progress-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:14px;
+    gap:10px;
+  }
+  .progress-track{
+    flex:1;
+    height:6px;
+    background:#EEEFF7;
+    border-radius:99px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--blue), var(--violet));
+    border-radius:99px;
+    width:0%;
+    transition:width .3s ease;
+  }
+  .progress-count{
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink-soft);
+    flex-shrink:0;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .btn-row{ display:flex; gap:10px; margin-top:18px; }
+  .btn-row button{ margin-top:0; }
+  .btn-reset{
+    width:auto;
+    flex-shrink:0;
+    background:#fff;
+    color:var(--ink-soft);
+    border:1.5px solid var(--line);
+    padding:14px 18px;
+  }
+  .btn-reset:hover{ opacity:1; background:#FAFAFC; color:var(--ink); }
+
+  .spinner{
+    display:inline-block;
+    width:14px; height:14px;
+    border:2px solid rgba(255,255,255,0.4);
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    margin-right:8px;
+    vertical-align:-2px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
 
   button{
     width:100%;
@@ -152,7 +213,16 @@
   button:disabled{ background:#C7C9D6; cursor:not-allowed; }
 
   /* ---------- Result ---------- */
-  #result{ display:none; }
+  #result{
+    display:none;
+    opacity:0;
+    transform:translateY(10px);
+    transition:opacity .4s ease, transform .4s ease;
+  }
+  #result.show{
+    opacity:1;
+    transform:translateY(0);
+  }
 
   .rekomendasi-utama{
     background:linear-gradient(135deg, var(--violet) 0%, var(--blue) 100%);
@@ -182,13 +252,34 @@
     align-items:center;
     gap:12px;
     padding:10px 0;
+    border-radius:10px;
   }
   .bar-row + .bar-row{ border-top:1px solid var(--line); }
+  .bar-row:first-child{
+    background:#F4FBF8;
+    border:1px solid #CDEEE0;
+    padding:10px 12px;
+    margin:-1px -1px 6px;
+  }
+  .bar-row:first-child + .bar-row{ border-top:none; }
   .bar-label{
     width:170px;
     flex-shrink:0;
     font-size:13.5px;
     font-weight:500;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .badge-best{
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:0.3px;
+    color:#fff;
+    background:linear-gradient(135deg, var(--mint), #16A77A);
+    padding:2px 7px;
+    border-radius:99px;
+    text-transform:uppercase;
   }
   .bar-track{
     flex:1;
@@ -202,6 +293,7 @@
     border-radius:99px;
     background:linear-gradient(90deg, var(--blue), var(--violet));
     transition:width .6s cubic-bezier(.4,0,.2,1);
+    width:0%;
   }
   .bar-row:first-child .bar-fill{ background:linear-gradient(90deg, var(--mint), #16A77A); }
   .bar-pct{
@@ -268,8 +360,15 @@
       <h2>Nilai Mata Kuliah</h2>
       <span class="pill">Skala 0–100</span>
     </div>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-count" id="progressCount">0/10 terisi</div>
+    </div>
     <div class="grid" id="nilaiGrid"></div>
-    <button id="submitBtn">Lihat Rekomendasi Peminatan</button>
+    <div class="btn-row">
+      <button id="submitBtn">Lihat Rekomendasi Peminatan</button>
+      <button id="resetBtn" class="btn-reset" type="button">Reset</button>
+    </div>
   </div>
 
   <div id="result">
@@ -330,6 +429,9 @@
   const errorBox = document.getElementById("errorBox");
   const resultDiv = document.getElementById("result");
   const submitBtn = document.getElementById("submitBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const progressFill = document.getElementById("progressFill");
+  const progressCount = document.getElementById("progressCount");
 
   function showError(msg) {
     errorBox.textContent = msg;
@@ -340,8 +442,69 @@
     errorBox.style.display = "none";
   }
 
+  function validateInput(input) {
+    const val = input.value;
+    if (val === "") {
+      input.classList.remove("invalid", "filled");
+      return;
+    }
+    const num = parseFloat(val);
+    if (isNaN(num) || num < 0 || num > 100) {
+      input.classList.add("invalid");
+      input.classList.remove("filled");
+    } else {
+      input.classList.remove("invalid");
+      input.classList.add("filled");
+    }
+  }
+
+  function updateProgress() {
+    const filled = MATA_KULIAH.filter((mk) => {
+      const el = document.getElementById(mk);
+      return el.value !== "" && !el.classList.contains("invalid");
+    }).length;
+    progressFill.style.width = `${(filled / MATA_KULIAH.length) * 100}%`;
+    progressCount.textContent = `${filled}/${MATA_KULIAH.length} terisi`;
+  }
+
+  MATA_KULIAH.forEach((mk) => {
+    const input = document.getElementById(mk);
+    input.addEventListener("input", () => {
+      validateInput(input);
+      updateProgress();
+      clearError();
+    });
+  });
+
+  function focusFirstInvalidOrEmpty() {
+    for (const mk of MATA_KULIAH) {
+      const el = document.getElementById(mk);
+      if (el.value === "" || el.classList.contains("invalid")) {
+        el.focus();
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+    }
+  }
+
+  resetBtn.addEventListener("click", () => {
+    document.getElementById("nim").value = "";
+    document.getElementById("nama").value = "";
+    MATA_KULIAH.forEach((mk) => {
+      const el = document.getElementById(mk);
+      el.value = "";
+      el.classList.remove("invalid", "filled");
+    });
+    updateProgress();
+    clearError();
+    resultDiv.classList.remove("show");
+    resultDiv.style.display = "none";
+    document.getElementById("nim").focus();
+  });
+
   submitBtn.addEventListener("click", async () => {
     clearError();
+    resultDiv.classList.remove("show");
     resultDiv.style.display = "none";
 
     const payload = {
@@ -350,16 +513,23 @@
     };
 
     for (const mk of MATA_KULIAH) {
-      const val = document.getElementById(mk).value;
+      const input = document.getElementById(mk);
+      const val = input.value;
       if (val === "") {
         showError(`Nilai "${LABEL_TAMPIL[mk]}" belum diisi.`);
+        focusFirstInvalidOrEmpty();
+        return;
+      }
+      if (input.classList.contains("invalid")) {
+        showError(`Nilai "${LABEL_TAMPIL[mk]}" harus di antara 0–100.`);
+        focusFirstInvalidOrEmpty();
         return;
       }
       payload[mk] = parseFloat(val);
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = "Memproses...";
+    submitBtn.innerHTML = `<span class="spinner"></span>Memproses...`;
 
     try {
       const res = await fetch(`${API_BASE}/recommend`, {
@@ -378,18 +548,25 @@
 
       const rankingList = document.getElementById("rankingList");
       rankingList.innerHTML = "";
-      data.ranking_semua_peminatan.forEach((r) => {
+      data.ranking_semua_peminatan.forEach((r, idx) => {
         const row = document.createElement("div");
         row.className = "bar-row";
         row.innerHTML = `
-          <div class="bar-label">${r.peminatan}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${r.skor_kecocokan}%"></div></div>
+          <div class="bar-label">${r.peminatan}${idx === 0 ? '<span class="badge-best">Terbaik</span>' : ""}</div>
+          <div class="bar-track"><div class="bar-fill" data-pct="${r.skor_kecocokan}"></div></div>
           <div class="bar-pct">${r.skor_kecocokan}%</div>
         `;
         rankingList.appendChild(row);
       });
 
       resultDiv.style.display = "block";
+      // trigger animation + bar fill on next frame
+      requestAnimationFrame(() => {
+        resultDiv.classList.add("show");
+        rankingList.querySelectorAll(".bar-fill").forEach((bar) => {
+          bar.style.width = `${bar.dataset.pct}%`;
+        });
+      });
       resultDiv.scrollIntoView({ behavior: "smooth" });
     } catch (err) {
       showError("Koneksi ke server gagal. Pastikan backend sedang berjalan.");
